@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 from app.database.database import engine, Base
-from app.api import system, data, transactions, predict, dashboard, alerts
+from app.api import system, data, transactions, predict, dashboard, alerts, patterns, models
 
 Base.metadata.create_all(bind=engine)
 
@@ -30,6 +30,8 @@ app.include_router(transactions.router, prefix="/api/transactions", tags=["Trans
 app.include_router(predict.router, prefix="/api/predict", tags=["Prediction"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
 app.include_router(alerts.router, prefix="/api/alerts", tags=["Alerts"])
+app.include_router(patterns.router, prefix="/api/patterns", tags=["Patterns"])
+app.include_router(models.router, prefix="/api/models", tags=["Models"])
 
 from app.streaming import websocket
 app.include_router(websocket.router)

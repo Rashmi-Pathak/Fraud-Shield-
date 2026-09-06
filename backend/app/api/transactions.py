@@ -11,7 +11,7 @@ from app.ml.predict import PredictionService
 
 router = APIRouter()
 
-@router.get(\"\", response_model=PaginatedTransactionsOut)
+@router.get(""), response_model=PaginatedTransactionsOut)
 def get_transactions(
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1),
