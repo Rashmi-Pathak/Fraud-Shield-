@@ -13,6 +13,7 @@ export default function DashboardOverview() {
   const [txData, setTxData] = useState<any[]>([]);
   const [fraudData, setFraudData] = useState<any[]>([]);
   const [riskData, setRiskData] = useState<any[]>([]);
+  const [backendError, setBackendError] = useState(false);
   
   useEffect(() => {
     const fetchData = async () => {
@@ -45,6 +46,7 @@ export default function DashboardOverview() {
         }
       } catch (err) {
         console.error(err);
+        setBackendError(true);
       }
     };
     fetchData();
@@ -53,7 +55,7 @@ export default function DashboardOverview() {
   }, []);
 
   if (!summary) {
-    return <div className="p-8 text-center text-gray-500">Loading Dashboard Data...</div>;
+    return <div className="p-8 text-center text-gray-500">{backendError ? 'Backend unavailable' : 'Loading Dashboard Data...'}</div>;
   }
 
   const formatCurrency = (val: number) => {
@@ -69,7 +71,7 @@ export default function DashboardOverview() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Overview Dashboard</h1>
-          <p className="text-gray-500">Welcome back, <span className="font-semibold text-gray-700">Operator!</span> Here's what's happening with your transactions today.</p>
+          <p className="text-gray-500">Current transaction and fraud monitoring status.</p>
         </div>
         <div className="flex items-center space-x-2 bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm font-medium shadow-sm">
           <Clock className="w-4 h-4 text-gray-500" />
