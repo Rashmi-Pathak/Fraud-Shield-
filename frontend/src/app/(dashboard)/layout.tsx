@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { 
   Home, Activity, Search, List, Bell, 
   GitMerge, BrainCircuit, Database, Settings, ShieldCheck 
@@ -31,6 +32,36 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [alertCount, setAlertCount] = useState<number | null>(null);
+  const [systemStatus, setSystemStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const loadStatus = async () => {
+      try {
+        const [alertsResponse, systemResponse] = await Promise.all([
+          fetch('/api/alerts/summary'),
+          fetch('/api/system/health'),
+        ]);
+        if (!active) return;
+        if (alertsResponse.ok) {
+          const data = await alertsResponse.json();
+          setAlertCount(typeof data.total === 'number' ? data.total : 0);
+        }
+        if (systemResponse.ok) {
+          const data = await systemResponse.json();
+          setSystemStatus(data.status || null);
+        }
+      } catch {
+        if (active) {
+          setAlertCount(null);
+          setSystemStatus(null);
+        }
+      }
+    };
+    loadStatus();
+    return () => { active = false; };
+  }, []);
 
   return (
     <div className="flex h-screen w-full bg-[#f4f7f6]">
@@ -68,7 +99,7 @@ export default function DashboardLayout({
                     <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
                   )}
                   {item.hasNotification && isActive && (
-                    <div className="w-5 h-5 bg-yellow-400 text-[#1e463a] rounded-full flex items-center justify-center text-[10px] font-bold">12</div>
+                    <div className="w-5 h-5 bg-yellow-400 text-[#1e463a] rounded-full flex items-center justify-center text-[10px] font-bold">{alertCount ?? 'N/A'}</div>
                   )}
                 </Link>
               );
@@ -85,7 +116,7 @@ export default function DashboardLayout({
             </div>
             <div>
               <p className="text-sm font-semibold text-white">System Status</p>
-              <p className="text-xs text-emerald-400 font-medium">Operational</p>
+              <p className="text-xs text-emerald-400 font-medium">{systemStatus || 'Backend unavailable'}</p>
             </div>
           </div>
         </div>
@@ -111,7 +142,7 @@ export default function DashboardLayout({
             
             <div className="relative p-2 text-gray-500 hover:text-gray-700 cursor-pointer">
               <Bell className="w-6 h-6" />
-              <div className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-white">8</div>
+              <div className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-white">{alertCount ?? 'N/A'}</div>
             </div>
             
             <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
