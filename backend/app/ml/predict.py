@@ -24,6 +24,9 @@ class PredictionService:
         self.scaler = joblib.load(os.path.join(base, "preprocessor.joblib"))
         self.xgb = joblib.load(os.path.join(base, "xgboost", "model.joblib"))
         self.rf = joblib.load(os.path.join(base, "random_forest", "model.joblib"))
+        # Keep inference single-threaded for the local SQLite prototype and restricted hosts.
+        if hasattr(self.rf, "n_jobs"):
+            self.rf.n_jobs = 1
         self.iso = joblib.load(os.path.join(base, "isolation_forest", "model.joblib"))
         self.iso_norm = joblib.load(os.path.join(base, "isolation_forest", "norm_params.joblib"))
         
