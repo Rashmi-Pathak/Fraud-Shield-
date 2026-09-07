@@ -11,6 +11,8 @@ from app.fraud.rules import FraudRuleEngine
 from app.fraud.risk_engine import RiskEngine
 
 class PredictionService:
+    _artifact_cache = None
+
     def __init__(self, db: Session):
         self.db = db
         self.feature_eng = FeatureEngineer(db)
@@ -19,16 +21,21 @@ class PredictionService:
         self._load_models()
         
     def _load_models(self):
+        if PredictionService._artifact_cache is not None:
+            self.schema, self.scaler, self.xgb, self.rf, self.iso, self.iso_norm = PredictionService._artifact_cache
+            return
         base = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "models")
-        self.schema = joblib.load(os.path.join(base, "feature_schema.joblib"))
-        self.scaler = joblib.load(os.path.join(base, "preprocessor.joblib"))
-        self.xgb = joblib.load(os.path.join(base, "xgboost", "model.joblib"))
-        self.rf = joblib.load(os.path.join(base, "random_forest", "model.joblib"))
+        schema = joblib.load(os.path.join(base, "feature_schema.joblib"))
+        scaler = joblib.load(os.path.join(base, "preprocessor.joblib"))
+        xgb = joblib.load(os.path.join(base, "xgboost", "model.joblib"))
+        rf = joblib.load(os.path.join(base, "random_forest", "model.joblib"))
         # Keep inference single-threaded for the local SQLite prototype and restricted hosts.
-        if hasattr(self.rf, "n_jobs"):
-            self.rf.n_jobs = 1
-        self.iso = joblib.load(os.path.join(base, "isolation_forest", "model.joblib"))
-        self.iso_norm = joblib.load(os.path.join(base, "isolation_forest", "norm_params.joblib"))
+        if hasattr(rf, "n_jobs"):
+            rf.n_jobs = 1
+        iso = joblib.load(os.path.join(base, "isolation_forest", "model.joblib"))
+        iso_norm = joblib.load(os.path.join(base, "isolation_forest", "norm_params.joblib"))
+        PredictionService._artifact_cache = (schema, scaler, xgb, rf, iso, iso_norm)
+        self.schema, self.scaler, self.xgb, self.rf, self.iso, self.iso_norm = PredictionService._artifact_cache
         
     def predict(self, tx: Transaction) -> Dict[str, Any]:
         """

@@ -33,18 +33,24 @@ export default function LiveMonitor() {
   const [activityData, setActivityData] = useState<any[]>([]);
   
   const ws = useRef<WebSocket | null>(null);
+  const reconnectTimer = useRef<number | null>(null);
+  const mounted = useRef(false);
   
   const autoScroll = useRef(true);
   const tableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    mounted.current = true;
     connectWs();
     return () => {
+        mounted.current = false;
+        if (reconnectTimer.current) window.clearTimeout(reconnectTimer.current);
         if (ws.current) ws.current.close();
     };
   }, []);
 
   const connectWs = () => {
+    if (!mounted.current) return;
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:8000/ws/live`;
     ws.current = new WebSocket(wsUrl);
     
@@ -63,7 +69,9 @@ export default function LiveMonitor() {
     
     ws.current.onclose = () => {
         setStatus("Backend unavailable");
-        setTimeout(connectWs, 3000); // Reconnect
+        if (mounted.current) {
+          reconnectTimer.current = window.setTimeout(connectWs, 3000);
+        }
     };
   };
 
