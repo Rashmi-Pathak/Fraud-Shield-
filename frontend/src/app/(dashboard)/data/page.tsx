@@ -12,16 +12,7 @@ import {
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 
-// Static chart data (quality trend — visual only)
-const qualityTrends = [
-  { name: 'May 23', score: 95.2 },
-  { name: 'May 24', score: 95.8 },
-  { name: 'May 25', score: 94.5 },
-  { name: 'May 26', score: 96.0 },
-  { name: 'May 27', score: 96.5 },
-  { name: 'May 28', score: 95.9 },
-  { name: 'May 29', score: 96.2 },
-];
+const qualityTrends: any[] = [];
 
 export default function DataCenter() {
   const [summary, setSummary] = useState<any>(null);
@@ -29,6 +20,7 @@ export default function DataCenter() {
   const [quality, setQuality] = useState<any>(null);
   const [pipelines, setPipelines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [backendError, setBackendError] = useState(false);
 
   // Upload state
   const [uploading, setUploading] = useState(false);
@@ -55,6 +47,7 @@ export default function DataCenter() {
       if (plRes.ok) setPipelines(await plRes.json());
     } catch (e) {
       console.error(e);
+      setBackendError(true);
     } finally {
       setLoading(false);
     }
@@ -103,6 +96,10 @@ export default function DataCenter() {
     { label: 'Invalid Categorical', val: quality.invalid_categorical, color: 'text-orange-500' },
     { label: 'Unknown Fields', val: quality.unknown_fields, color: 'text-gray-400' },
   ] : [];
+
+  if (!loading && backendError && !summary) {
+    return <div className="p-8 text-center text-gray-500">Backend unavailable</div>;
+  }
 
   const totalQualityIssues = qualityIssues.reduce((s, i) => s + i.val, 0);
   const qualityScore = summary?.total_transactions > 0
