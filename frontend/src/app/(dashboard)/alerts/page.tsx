@@ -9,35 +9,11 @@ import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
-// Using fixed mock data for charts since we don't have a /api/alerts/summary endpoint
-const overviewData = [
-  { name: 'Critical', value: 128, color: '#ef4444' },
-  { name: 'High', value: 320, color: '#f97316' },
-  { name: 'Medium', value: 542, color: '#eab308' },
-  { name: 'Low', value: 258, color: '#10b981' },
-];
-
-const timeData = [
-  { name: 'May 23', critical: 10, high: 20, medium: 40, low: 25 },
-  { name: 'May 24', critical: 15, high: 25, medium: 45, low: 20 },
-  { name: 'May 25', critical: 8, high: 18, medium: 35, low: 30 },
-  { name: 'May 26', critical: 12, high: 22, medium: 50, low: 28 },
-  { name: 'May 27', critical: 20, high: 30, medium: 40, low: 22 },
-  { name: 'May 28', critical: 18, high: 28, medium: 45, low: 35 },
-  { name: 'May 29', critical: 25, high: 35, medium: 55, low: 40 },
-];
-
-const categoriesData = [
-  { name: 'Velocity Anomaly', count: 425, pct: '34.1%', fill: '#ef4444', icon: Activity },
-  { name: 'Card Testing', count: 318, pct: '25.5%', fill: '#f97316', icon: CreditCard },
-  { name: 'Amount Anomaly', count: 286, pct: '22.9%', fill: '#eab308', icon: IndianRupee },
-  { name: 'New Device', count: 129, pct: '10.3%', fill: '#10b981', icon: Monitor },
-  { name: 'Geographic Anomaly', count: 90, pct: '7.2%', fill: '#3b82f6', icon: MapPin },
-];
-
 export default function FraudAlerts() {
   const [data, setData] = useState<any>({ items: [], total: 0, page: 1, size: 10, pages: 1 });
+  const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [backendError, setBackendError] = useState(false);
   
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(10);
@@ -62,8 +38,13 @@ export default function FraudAlerts() {
         const d = await res.json();
         setData(d);
       }
+      else setBackendError(true);
+      const summaryRes = await fetch('/api/alerts/summary');
+      if (summaryRes.ok) setSummary(await summaryRes.json());
+      else setBackendError(true);
     } catch (err) {
       console.error(err);
+      setBackendError(true);
     } finally {
       setLoading(false);
     }
@@ -78,6 +59,7 @@ export default function FraudAlerts() {
 
   return (
     <div className="p-8 space-y-6 flex flex-col h-full overflow-hidden">
+      {backendError && <div className="p-3 bg-red-50 text-red-700 rounded-xl border border-red-200 text-sm font-medium">Backend unavailable</div>}
       
       {/* Header */}
       <div>
@@ -93,7 +75,7 @@ export default function FraudAlerts() {
               <ShieldAlert className="w-5 h-5 text-red-500" />
               <span className="text-sm font-semibold">Total Alerts</span>
             </div>
-            <h3 className="text-3xl font-bold text-gray-900">1,248</h3>
+            <h3 className="text-3xl font-bold text-gray-900">{summary?.total ?? 0}</h3>
           </div>
         </div>
 
@@ -103,7 +85,7 @@ export default function FraudAlerts() {
               <ShieldAlert className="w-5 h-5 text-red-600 fill-red-50" />
               <span className="text-sm font-semibold">Critical</span>
             </div>
-            <h3 className="text-3xl font-bold text-gray-900">128</h3>
+            <h3 className="text-3xl font-bold text-gray-900">{summary?.critical ?? 0}</h3>
           </div>
         </div>
 
@@ -113,7 +95,7 @@ export default function FraudAlerts() {
               <AlertTriangle className="w-5 h-5 text-orange-500 fill-orange-50" />
               <span className="text-sm font-semibold">High Risk</span>
             </div>
-            <h3 className="text-3xl font-bold text-gray-900">320</h3>
+            <h3 className="text-3xl font-bold text-gray-900">{summary?.high ?? 0}</h3>
           </div>
         </div>
 
@@ -123,7 +105,7 @@ export default function FraudAlerts() {
               <AlertTriangle className="w-5 h-5 text-yellow-500 fill-yellow-50" />
               <span className="text-sm font-semibold">Medium Risk</span>
             </div>
-            <h3 className="text-3xl font-bold text-gray-900">542</h3>
+            <h3 className="text-3xl font-bold text-gray-900">{summary?.medium ?? 0}</h3>
           </div>
         </div>
 
@@ -133,7 +115,7 @@ export default function FraudAlerts() {
               <ShieldCheck className="w-5 h-5 text-emerald-500 fill-emerald-50" />
               <span className="text-sm font-semibold">Low Risk</span>
             </div>
-            <h3 className="text-3xl font-bold text-gray-900">258</h3>
+            <h3 className="text-3xl font-bold text-gray-900">{summary?.low ?? 0}</h3>
           </div>
         </div>
       </div>
@@ -299,7 +281,6 @@ export default function FraudAlerts() {
 
         {/* Right Column: Widgets */}
         <div className="w-[320px] flex-shrink-0 space-y-6 overflow-y-auto pr-2 max-h-full">
-          {/* ... widgets ... (Static mock left here for visual accuracy as requested) */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-gray-800 text-sm">Alerts Overview</h3>
@@ -314,17 +295,17 @@ export default function FraudAlerts() {
               <div className="w-24 h-24 relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={overviewData} cx="50%" cy="50%" innerRadius={35} outerRadius={48} paddingAngle={2} dataKey="value">
-                      {overviewData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
+                    <Pie data={summary?.overview || []} cx="50%" cy="50%" innerRadius={35} outerRadius={48} paddingAngle={2} dataKey="value">
+                      {(summary?.overview || []).map((entry: any, index: number) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-sm font-bold text-gray-900">1,248</span>
+                  <span className="text-sm font-bold text-gray-900">{summary?.total ?? 0}</span>
                 </div>
               </div>
               <div className="flex-1 pl-4 space-y-2 text-[10px]">
-                {overviewData.map((item, i) => (
+                {(summary?.overview || []).map((item: any, i: number) => (
                   <div key={i} className="flex justify-between items-center">
                     <div className="flex items-center space-x-1.5">
                       <div className="w-2 h-2 rounded-full" style={{backgroundColor: item.color}}></div>
@@ -348,7 +329,7 @@ export default function FraudAlerts() {
             </div>
             <div className="h-40 w-full mb-3">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={timeData} margin={{top: 5, right: 0, left: -25, bottom: 0}}>
+                <AreaChart data={summary?.trend || []} margin={{top: 5, right: 0, left: -25, bottom: 0}}>
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#9ca3af' }} dy={10} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#9ca3af' }} />
                   <Tooltip />
