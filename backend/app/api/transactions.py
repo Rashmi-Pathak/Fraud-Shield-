@@ -36,7 +36,7 @@ def get_transactions(
         query = query.join(Prediction).filter(Prediction.risk_level == risk_level)
 
     if fraud_label:
-        query = query.join(FraudLabel).filter(FraudLabel.label == fraud_label)
+        query = query.join(FraudLabel).filter(FraudLabel.label_status == fraud_label)
 
     if search:
         query = query.filter(
@@ -121,7 +121,7 @@ def get_transaction_detail(transaction_id: str, db: Session = Depends(get_db)):
         "transaction": tx,
         "prediction": pred,
         "detections": detections,
-        "label": label_obj.label if label_obj else None,
+        "label": label_obj.label_status if label_obj else None,
         "features": features,
         "risk_factors": risk_factors
     }
