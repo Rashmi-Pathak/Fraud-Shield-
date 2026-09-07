@@ -20,6 +20,10 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
+        # A browser tab should control one local stream, not leave older tab
+        # connections producing transactions in the background.
+        for existing in self.simulators.values():
+            existing.stop()
         # Create a simulator for this connection
         csv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "data", "raw", "live_stream_sample_1000.csv")
         sim = StreamSimulator(csv_path)
@@ -54,6 +58,14 @@ class ConnectionManager:
                 print(f"Error processing transaction: {e}")
 
         sim.register_callback(callback)
+
+    def pause_all(self):
+        for simulator in self.simulators.values():
+            simulator.pause()
+
+    def stop_all(self):
+        for simulator in self.simulators.values():
+            simulator.stop()
 
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
@@ -99,10 +111,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 sim.start()
                 await websocket.send_json({"type": "status", "data": "Running"})
             elif action == "PAUSE":
-                sim.pause()
+                manager.pause_all()
                 await websocket.send_json({"type": "status", "data": "Paused"})
             elif action == "STOP":
-                sim.stop()
+                manager.stop_all()
                 await websocket.send_json({"type": "status", "data": "Stopped"})
             elif action == "SET_SPEED":
                 speed = float(message.get("speed", 1.0))
