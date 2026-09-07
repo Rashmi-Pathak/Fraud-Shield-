@@ -69,11 +69,13 @@ export default function TransactionDetail() {
   ];
 
   // Map SHAP or risk factors
-  const shapData = Object.keys(data.features || {}).slice(0, 8).map((k: string) => ({
-      name: k.replace(/_/g, " "),
-      impact: data.features[k],
-      fill: '#10b981'
-  }));
+  
+  const shapData = shapExpl ? shapExpl.contributions.map((c: any) => ({
+    name: c.feature,
+    value: Math.abs(c.contribution),
+    raw: c.contribution
+  })) : [];
+
 
   const riskLevelColor = pred.risk_level === 'CRITICAL' ? 'text-red-600 bg-red-50 border-red-100' :
                          pred.risk_level === 'HIGH' ? 'text-orange-600 bg-orange-50 border-orange-100' :
@@ -346,12 +348,17 @@ export default function TransactionDetail() {
           <div className="flex-1 overflow-auto">
             <h3 className="font-bold text-gray-900 text-sm mb-4">Historical Context</h3>
             <div className="space-y-3 mt-4 pr-4 text-xs text-gray-600">
-                {shapData.length === 0 ? "No contextual features found." : 
+                                {shapData.length === 0 ? "No contextual features found." : 
                     shapData.map((d: any, i: number) => (
-                        <div key={i} className="flex justify-between items-center border-b border-gray-50 pb-2">
-                            <span>{d.name}</span>
-                            <span className="font-bold text-gray-900">{typeof d.impact === 'number' ? d.impact.toFixed(2) : d.impact}</span>
+                      <div key={i} className="flex justify-between items-center text-[10px] border-b border-gray-50 pb-2">
+                        <span className="w-24 text-gray-600 truncate" title={d.name}>{d.name}</span>
+                        <div className="flex-1 mx-3 h-1.5 bg-gray-100 rounded-full overflow-hidden flex justify-end">
+                          <div className={`h-full rounded-full ${d.raw > 0 ? 'bg-[#ef4444]' : 'bg-[#10b981]'}`} style={{width: `${(d.value / Math.max(...shapData.map((s:any)=>s.value))) * 100}%`}}></div>
                         </div>
+                        <span className={`font-bold w-12 text-right ${d.raw > 0 ? 'text-[#ef4444]' : 'text-[#10b981]'}`}>
+                          {d.raw > 0 ? '+' : ''}{(d.raw).toFixed(3)}
+                        </span>
+                      </div>
                     ))
                 }
             </div>
