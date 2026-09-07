@@ -6,11 +6,30 @@ import pandas as pd
 import io
 import os
 from datetime import datetime
+from pathlib import Path
 
 from app.database.database import get_db
 from app.database.models import Transaction, FraudLabel, TransactionFeature
 
 router = APIRouter()
+DATABASE_PATH = Path(__file__).resolve().parents[2] / "database" / "fraudshield.db"
+
+def _quality_metrics(db: Session, total: int) -> dict:
+    if total == 0:
+        return {"missing_values": 0, "duplicate_ids": 0, "invalid_timestamps": 0,
+                "invalid_amounts": 0, "invalid_categorical": 0, "unknown_fields": 0}
+    missing = db.query(func.count(Transaction.transaction_id)).filter(
+        (Transaction.device_id == None) | (Transaction.country == None) | (Transaction.city == None)
+    ).scalar() or 0
+    invalid_amounts = db.query(func.count(Transaction.transaction_id)).filter(Transaction.amount < 0).scalar() or 0
+    return {"missing_values": missing, "duplicate_ids": 0, "invalid_timestamps": 0,
+            "invalid_amounts": invalid_amounts, "invalid_categorical": 0, "unknown_fields": 0}
+
+def _quality_score(metrics: dict, total: int) -> float | None:
+    if total == 0:
+        return None
+    defects = sum(metrics.values())
+    return round(max(0.0, (1 - defects / total) * 100), 2)
 
 @router.get("/summary")
 def get_data_summary(db: Session = Depends(get_db)):
@@ -42,56 +61,28 @@ def get_data_summary(db: Session = Depends(get_db)):
 
 @router.get("/datasets")
 def get_datasets(db: Session = Depends(get_db)):
-    # Actual datasets imported. Right now we only really have the primary Transactions DB.
-    # We will query SQLite size for mock realism if possible, or just return DB stats.
+    # The prototype has one operational SQLite dataset; all values come from the database.
     total = db.query(func.count(Transaction.transaction_id)).scalar() or 0
     if total == 0:
         return []
     
     # Just returning the primary operational dataset
+    quality = _quality_metrics(db, total)
+    updated = db.query(func.max(Transaction.event_time)).scalar()
     return [{
         "name": "Transactions DB (Primary)",
         "source": "SQLite / Live Streams",
         "records": total,
-        "size": f"{round(os.path.getsize('database/fraudshield.db') / (1024*1024), 2)} MB" if os.path.exists('database/fraudshield.db') else "Unknown",
-        "updated": datetime.now().strftime("%b %d, %Y %I:%M %p"),
-        "quality_score": "98.5%",
+        "size": f"{round(DATABASE_PATH.stat().st_size / (1024*1024), 2)} MB" if DATABASE_PATH.exists() else None,
+        "updated": updated.isoformat() if updated else None,
+        "quality_score": f"{_quality_score(quality, total):.2f}%" if _quality_score(quality, total) is not None else None,
         "status": "Active"
     }]
 
 @router.get("/quality")
 def get_data_quality(db: Session = Depends(get_db)):
-    # Calculate actual data quality metrics on the database
-    # For performance on SQLite, we use simple counting
-    
     total = db.query(func.count(Transaction.transaction_id)).scalar() or 0
-    
-    if total == 0:
-        return {
-            "missing_values": 0,
-            "duplicate_ids": 0,
-            "invalid_timestamps": 0,
-            "invalid_amounts": 0,
-            "invalid_categorical": 0,
-            "unknown_fields": 0
-        }
-
-    # Duplicate IDs (PK guarantees 0 unless we count from a staging table, but we use the PK)
-    # Missing values: count rows where device_id, location, etc are NULL
-    missing = db.query(func.count(Transaction.transaction_id)).filter(
-        (Transaction.device_id == None) | (Transaction.country == None) | (Transaction.city == None)
-    ).scalar() or 0
-    
-    invalid_amounts = db.query(func.count(Transaction.transaction_id)).filter(Transaction.amount < 0).scalar() or 0
-    
-    return {
-        "missing_values": missing,
-        "duplicate_ids": 0,
-        "invalid_timestamps": 0,
-        "invalid_amounts": invalid_amounts,
-        "invalid_categorical": 0,
-        "unknown_fields": 0
-    }
+    return _quality_metrics(db, total)
 
 @router.get("/pipeline-status")
 def get_pipeline_status():
