@@ -113,6 +113,17 @@ class FraudLabel(Base):
     transaction = relationship("Transaction", back_populates="label")
 
 
+class LabelAudit(Base):
+    __tablename__ = "label_audits"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    transaction_id = Column(String, ForeignKey("transactions.transaction_id"), index=True, nullable=False)
+    label_source = Column(String, nullable=False)
+    previous_status = Column(String, nullable=False)
+    new_status = Column(String, nullable=False)
+    timestamp = Column(DateTime, default=func.now(), nullable=False, index=True)
+
+
 class Alert(Base):
     __tablename__ = "alerts"
 
@@ -141,6 +152,8 @@ class ModelVersion(Base):
     f1 = Column(Float)
     roc_auc = Column(Float)
     pr_auc = Column(Float)
+    false_positive_rate = Column(Float)
+    validation_passed = Column(Boolean, default=False)
     model_path = Column(String)
     is_production = Column(Boolean, default=False)
     created_at = Column(DateTime, default=func.now())
