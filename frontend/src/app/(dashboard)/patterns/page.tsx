@@ -7,19 +7,12 @@ import { useState, useEffect } from 'react';
 
 const COLORS = ['#ef4444', '#f97316', '#eab308', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#6366f1', '#f43f5e', '#84cc16'];
 
-const trendData = [
-  { name: 'May 23', critical: 24, high: 45, medium: 80, low: 40 },
-  { name: 'May 24', critical: 35, high: 55, medium: 90, low: 30 },
-  { name: 'May 25', critical: 18, high: 38, medium: 70, low: 50 },
-  { name: 'May 26', critical: 28, high: 48, medium: 100, low: 45 },
-  { name: 'May 27', critical: 45, high: 65, medium: 80, low: 35 },
-  { name: 'May 28', critical: 40, high: 60, medium: 90, low: 55 },
-  { name: 'May 29', critical: 58, high: 78, medium: 110, low: 65 },
-];
+const trendData: any[] = [];
 
 export default function PatternsDashboard() {
   const [patterns, setPatterns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [backendError, setBackendError] = useState(false);
 
   useEffect(() => {
     const fetchPatterns = async () => {
@@ -31,6 +24,7 @@ export default function PatternsDashboard() {
         }
       } catch (err) {
         console.error("Failed to fetch patterns", err);
+        setBackendError(true);
       } finally {
         setLoading(false);
       }
@@ -55,7 +49,7 @@ export default function PatternsDashboard() {
               <Layers className="w-5 h-5 text-indigo-500" />
               <span className="text-sm font-semibold">Active Patterns</span>
             </div>
-            <h3 className="text-3xl font-bold text-gray-900">{patterns.filter(p => p.total_detected > 0).length || 10}</h3>
+            <h3 className="text-3xl font-bold text-gray-900">{patterns.filter(p => p.total_detected > 0).length}</h3>
           </div>
         </div>
 
@@ -75,6 +69,8 @@ export default function PatternsDashboard() {
         <div className="flex-1 overflow-auto h-full space-y-4 pr-2">
           {loading ? (
             <div className="p-8 text-center text-gray-500">Loading patterns...</div>
+          ) : backendError ? (
+            <div className="p-8 text-center text-gray-500">Backend unavailable</div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
               {patterns.map((p, idx) => (
