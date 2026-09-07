@@ -7,12 +7,7 @@ import {
   Home, Activity, Search, List, Bell, 
   GitMerge, BrainCircuit, Database, Settings, ShieldCheck 
 } from 'lucide-react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '../../lib/utils';
 
 const navItems = [
   { name: 'Overview', href: '/dashboard', icon: Home },
@@ -39,24 +34,22 @@ export default function DashboardLayout({
     let active = true;
     const loadStatus = async () => {
       try {
-        const [alertsResponse, systemResponse] = await Promise.all([
-          fetch('/api/alerts/summary'),
-          fetch('/api/system/health'),
-        ]);
-        if (!active) return;
-        if (alertsResponse.ok) {
-          const data = await alertsResponse.json();
+        const response = await fetch('/api/alerts/summary');
+        if (active && response.ok) {
+          const data = await response.json();
           setAlertCount(typeof data.total === 'number' ? data.total : 0);
         }
-        if (systemResponse.ok) {
-          const data = await systemResponse.json();
+      } catch {
+        if (active) setAlertCount(null);
+      }
+      try {
+        const response = await fetch('/api/system/health');
+        if (active && response.ok) {
+          const data = await response.json();
           setSystemStatus(data.status || null);
         }
       } catch {
-        if (active) {
-          setAlertCount(null);
-          setSystemStatus(null);
-        }
+        if (active) setSystemStatus(null);
       }
     };
     loadStatus();

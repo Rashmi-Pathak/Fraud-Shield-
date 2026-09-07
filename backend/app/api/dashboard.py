@@ -8,7 +8,8 @@ from app.database.models import (
     Transaction,
     Prediction,
     Alert,
-    FraudDetection
+    FraudDetection,
+    FraudLabel
 )
 from pydantic import BaseModel
 
@@ -17,28 +18,35 @@ router = APIRouter(tags=["Dashboard"])
 @router.get("/summary")
 def get_dashboard_summary(db: Session = Depends(get_db)):
     total_transactions = db.query(func.count(Transaction.transaction_id)).scalar() or 0
-    fraud_transactions = db.query(func.count(Prediction.transaction_id)).filter(
+    confirmed_fraud = db.query(func.count(FraudLabel.transaction_id)).filter(
+        FraudLabel.is_fraud.is_(True),
+        FraudLabel.label_status == "CONFIRMED_FRAUD"
+    ).scalar() or 0
+    high_risk_transactions = db.query(func.count(Prediction.transaction_id)).filter(
         Prediction.risk_level.in_(["HIGH", "CRITICAL"])
     ).scalar() or 0
-    
-    legitimate_transactions = total_transactions - fraud_transactions
-    fraud_rate = (fraud_transactions / total_transactions) * 100.0 if total_transactions > 0 else 0.0
+
+    legitimate_transactions = total_transactions - confirmed_fraud
+    fraud_rate = (confirmed_fraud / total_transactions) * 100.0 if total_transactions > 0 else 0.0
     
     critical_alerts = db.query(func.count(Alert.id)).filter(
         Alert.severity == "CRITICAL", Alert.status == "OPEN"
     ).scalar() or 0
     
     total_val = db.query(func.sum(Transaction.amount)).scalar() or 0.0
-    flagged_val = db.query(func.sum(Transaction.amount)).join(Prediction).filter(
-        Prediction.risk_level.in_(["HIGH", "CRITICAL"])
+    flagged_val = db.query(func.sum(Transaction.amount)).join(
+        FraudLabel, FraudLabel.transaction_id == Transaction.transaction_id
+    ).filter(
+        FraudLabel.is_fraud.is_(True),
+        FraudLabel.label_status == "CONFIRMED_FRAUD"
     ).scalar() or 0.0
     
     return {
         "total_transactions": total_transactions,
-        "fraud_transactions": fraud_transactions,
+        "fraud_transactions": confirmed_fraud,
         "legitimate_transactions": legitimate_transactions,
         "fraud_rate": fraud_rate,
-        "high_risk_transactions": fraud_transactions,
+        "high_risk_transactions": high_risk_transactions,
         "critical_alerts": critical_alerts,
         "total_transaction_value": total_val,
         "flagged_transaction_value": flagged_val
@@ -63,10 +71,10 @@ def get_transaction_trends(db: Session = Depends(get_db), days: int = 30):
 @router.get("/fraud-trends")
 def get_fraud_trends(db: Session = Depends(get_db), days: int = 30):
     query = text("""
-        SELECT date(t.event_time) as dt, COUNT(*) as cnt 
+        SELECT date(t.event_time) as dt, COUNT(*) as cnt
         FROM transactions t
-        JOIN predictions p ON t.transaction_id = p.transaction_id
-        WHERE p.risk_level IN ('HIGH', 'CRITICAL') 
+        JOIN fraud_labels l ON t.transaction_id = l.transaction_id
+        WHERE l.is_fraud = 1 AND l.label_status = 'CONFIRMED_FRAUD'
           AND t.event_time >= date('now', :days)
         GROUP BY dt
         ORDER BY dt ASC

@@ -14,6 +14,8 @@ export default function ModelIntelligence() {
   const [trainingStatus, setTrainingStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [backendError, setBackendError] = useState(false);
+  const [retraining, setRetraining] = useState(false);
+  const [trainingError, setTrainingError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -49,6 +51,31 @@ export default function ModelIntelligence() {
       setBackendError(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRetrain = async () => {
+    setRetraining(true);
+    setTrainingError(null);
+    try {
+      const response = await fetch('/api/models/retrain', { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Unable to start retraining');
+      setTrainingStatus(data);
+      const poll = window.setInterval(async () => {
+        const statusResponse = await fetch('/api/models/training/status');
+        if (!statusResponse.ok) return;
+        const status = await statusResponse.json();
+        setTrainingStatus(status);
+        if (!status.is_training) {
+          window.clearInterval(poll);
+          setRetraining(false);
+          fetchData();
+        }
+      }, 3000);
+    } catch (error: any) {
+      setTrainingError(error.message || 'Unable to start retraining');
+      setRetraining(false);
     }
   };
 
@@ -211,11 +238,12 @@ export default function ModelIntelligence() {
                     <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Active Training Jobs</p>
                     <p className="text-2xl font-bold text-gray-900 leading-none">{trainingStatus?.is_training ? 1 : 0}</p>
                   </div>
-                  <button className="text-[10px] font-bold text-white bg-[#1e463a] px-3 py-1.5 rounded-md hover:bg-[#15342a] flex items-center">
+                  <button onClick={handleRetrain} disabled={retraining || trainingStatus?.is_training} className="text-[10px] font-bold text-white bg-[#1e463a] px-3 py-1.5 rounded-md hover:bg-[#15342a] flex items-center disabled:opacity-50">
                     <PlayCircle className="w-3 h-3 mr-1" /> Retrain Models
                   </button>
                 </div>
                 
+                {trainingError && <p className="text-xs text-red-600 mb-3">{trainingError}</p>}
                 {trainingStatus?.is_training ? (
                   <div className="border border-blue-100 bg-blue-50/50 rounded-xl p-4">
                     <div className="flex justify-between items-center mb-2">
@@ -223,10 +251,10 @@ export default function ModelIntelligence() {
                         <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />
                         <span className="text-xs font-bold text-gray-900">{trainingStatus.job_name || 'Ensemble Retraining'}</span>
                       </div>
-                      <span className="text-[10px] font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded">{trainingStatus.progress}%</span>
+                      {trainingStatus.progress != null && <span className="text-[10px] font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded">{trainingStatus.progress}%</span>}
                     </div>
                     <div className="w-full bg-blue-100 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-blue-600 h-full rounded-full transition-all duration-500" style={{width: `${trainingStatus.progress}%`}}></div>
+                      <div className="bg-blue-600 h-full rounded-full transition-all duration-500" style={{width: trainingStatus.progress == null ? '100%' : `${trainingStatus.progress}%`}}></div>
                     </div>
                     <p className="text-[9px] text-gray-500 mt-2 text-right">Evaluating cross-validation folds...</p>
                   </div>
@@ -241,15 +269,15 @@ export default function ModelIntelligence() {
                 <div className="flex justify-between items-end mb-4">
                   <div>
                     <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Upcoming Training</p>
-                    <p className="text-2xl font-bold text-gray-900 leading-none">1</p>
+                    <p className="text-2xl font-bold text-gray-900 leading-none">N/A</p>
                   </div>
                 </div>
                 
                 <div className="flex items-start space-x-3 p-3 bg-gray-50 border border-gray-100 rounded-xl">
                   <div className="bg-white p-2 border border-gray-200 rounded-lg"><Calendar className="w-4 h-4 text-gray-500"/></div>
                   <div>
-                    <p className="text-xs font-bold text-gray-900">Scheduled Monthly Retrain</p>
-                    <p className="text-[10px] text-gray-500 mt-0.5">Automated pipeline (End of Month)</p>
+                    <p className="text-xs font-bold text-gray-900">No schedule configured</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Start a candidate run manually when labels are ready.</p>
                   </div>
                 </div>
               </div>

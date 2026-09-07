@@ -7,6 +7,9 @@ import pandas as pd
 import numpy as np
 import shap
 from pathlib import Path
+import subprocess
+import sys
+import threading
 
 from app.database.database import get_db
 from app.database.models import ModelVersion, Transaction
@@ -14,6 +17,11 @@ from app.ml.predict import PredictionService
 
 router = APIRouter()
 MODELS_DIR = Path(__file__).resolve().parents[2] / "models"
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+RETRAIN_SCRIPT = BACKEND_DIR / "scripts" / "retrain_models.py"
+_training_process = None
+_training_status = {"is_training": False, "progress": None, "job_name": None, "error": None, "return_code": None}
+_training_lock = threading.Lock()
 
 @router.get("")
 def get_models(db: Session = Depends(get_db)):
@@ -27,9 +35,35 @@ def get_models(db: Session = Depends(get_db)):
 
 @router.get("/training/status")
 def get_training_status():
-    # Return actual training status. Since we don't have a live celery/background training worker hooked up to a state DB right now, 
-    # we return None or completed.
-    return {"is_training": False, "progress": 0, "job_name": None}
+    with _training_lock:
+        if _training_process is not None and _training_process.poll() is not None:
+            _training_status["is_training"] = False
+            _training_status["return_code"] = _training_process.returncode
+        return dict(_training_status)
+
+@router.post("/retrain")
+def start_retraining():
+    global _training_process
+    with _training_lock:
+        if _training_process is not None and _training_process.poll() is None:
+            return dict(_training_status)
+        try:
+            _training_process = subprocess.Popen(
+                [sys.executable, str(RETRAIN_SCRIPT)],
+                cwd=str(BACKEND_DIR),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError as exc:
+            raise HTTPException(status_code=503, detail=f"Unable to start retraining: {exc}") from exc
+        _training_status.update({
+            "is_training": True,
+            "progress": None,
+            "job_name": "Confirmed-label candidate training",
+            "error": None,
+            "return_code": None,
+        })
+        return dict(_training_status)
 
 @router.get("/{model_name}")
 def get_model_detail(model_name: str, db: Session = Depends(get_db)):
