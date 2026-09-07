@@ -115,7 +115,7 @@ export default function LiveMonitor() {
     }));
 
     setRiskData(prev => {
-        const n = [...prev];
+        const n = prev.map(bucket => ({ ...bucket }));
         if (prediction.risk_score < 30) n[0].value += 1;
         else if (prediction.risk_score < 60) n[1].value += 1;
         else if (prediction.risk_score < 80) n[2].value += 1;
@@ -130,9 +130,10 @@ export default function LiveMonitor() {
             if (next.length > 30) return next.slice(next.length - 30);
             return next;
         } else {
-            const next = [...prev];
-            next[next.length - 1].count += 1;
-            return next;
+            return prev.map((point, index) => index === prev.length - 1
+              ? { ...point, count: point.count + 1 }
+              : point
+            );
         }
     });
 
