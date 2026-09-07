@@ -41,7 +41,7 @@ class StreamProcessor:
             detections = self.db.query(FraudDetection).filter(FraudDetection.transaction_id == tx.transaction_id).all()
             alert = self.db.query(Alert).filter(Alert.transaction_id == tx.transaction_id).first()
             return {
-                "transaction": tx_in.model_dump(),
+                "transaction": tx_in.model_dump(mode="json"),
                 "prediction": {
                     "risk_score": existing_pred.risk_score,
                     "risk_level": existing_pred.risk_level,
@@ -80,7 +80,7 @@ class StreamProcessor:
         detections = self.db.query(FraudDetection).filter(FraudDetection.transaction_id == tx.transaction_id).all()
 
         return {
-            "transaction": tx_in.model_dump(),
+            "transaction": tx_in.model_dump(mode="json"),
             "prediction": risk_result,
             "detections": [{"category": d.fraud_category, "reason": d.reason} for d in detections],
             "alert": alert_created,
