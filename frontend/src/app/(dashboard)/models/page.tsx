@@ -8,22 +8,12 @@ import Link from 'next/link';
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { useState, useEffect } from 'react';
 
-// Using mock chart data since time series evaluation isn't natively stored yet
-const perfData = [
-  { name: 'May 23', precision: 92, recall: 88, f1: 90 },
-  { name: 'May 24', precision: 93, recall: 89, f1: 91 },
-  { name: 'May 25', precision: 91, recall: 87, f1: 89 },
-  { name: 'May 26', precision: 94, recall: 88, f1: 91 },
-  { name: 'May 27', precision: 95, recall: 90, f1: 92 },
-  { name: 'May 28', precision: 93, recall: 89, f1: 91 },
-  { name: 'May 29', precision: 96, recall: 91, f1: 93.5 },
-];
-
 export default function ModelIntelligence() {
   const [models, setModels] = useState<any[]>([]);
   const [activeModelDetail, setActiveModelDetail] = useState<any>(null);
   const [trainingStatus, setTrainingStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [backendError, setBackendError] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -56,6 +46,7 @@ export default function ModelIntelligence() {
       
     } catch (err) {
       console.error("Error fetching models:", err);
+      setBackendError(true);
     } finally {
       setLoading(false);
     }
@@ -68,8 +59,14 @@ export default function ModelIntelligence() {
   };
 
   if (loading) return <div className="p-8 text-gray-500">Loading model intelligence...</div>;
+  if (backendError && models.length === 0) return <div className="p-8 text-gray-500">Backend unavailable</div>;
 
-  const totalDetections = 12480; // Placeholder until integrated with stats if needed
+  const perfData = models.map((model: any) => ({
+    name: model.version,
+    precision: (model.precision || 0) * 100,
+    recall: (model.recall || 0) * 100,
+    f1: (model.f1 || 0) * 100,
+  }));
   
   // Highest feature importance for scaling bars
   const maxImp = activeModelDetail?.feature_importances?.length ? Math.max(...activeModelDetail.feature_importances.map((f: any) => f.importance)) : 1;
@@ -113,7 +110,7 @@ export default function ModelIntelligence() {
               <Cpu className="w-5 h-5 text-blue-500" />
               <span className="text-sm font-semibold">Inference Latency</span>
             </div>
-            <h3 className="text-3xl font-bold text-gray-900">14<span className="text-xl text-gray-500 ml-1">ms</span></h3>
+            <h3 className="text-3xl font-bold text-gray-500">N/A</h3>
           </div>
         </div>
       </div>
@@ -173,7 +170,7 @@ export default function ModelIntelligence() {
               </div>
             </div>
 
-            {/* Performance History (Mocked for visuals) */}
+            {/* Performance history from model registry metrics */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 col-span-2">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-gray-800 text-sm">Ensemble Performance History (Val)</h3>
