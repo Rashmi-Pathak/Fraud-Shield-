@@ -59,6 +59,7 @@ export default function TransactionDetail() {
 
   const tx = data.transaction;
   const pred = data.prediction || { risk_score: 0, risk_level: 'UNKNOWN', fraud_probability: 0, xgboost_probability: 0, random_forest_probability: 0, isolation_forest_score: 0, recommended_action: 'ALLOW' };
+  const shapExpl = data.shap_explanation || null;
   
   const probData = [{val: 0}, {val: pred.fraud_probability * 20}, {val: pred.fraud_probability * 50}, {val: pred.fraud_probability * 80}, {val: pred.fraud_probability * 100}];
   
