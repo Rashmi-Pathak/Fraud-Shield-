@@ -5,7 +5,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 
 from app.database.database import get_db
-from app.database.models import FraudDetection, Prediction, Transaction
+from app.database.models import Alert, FraudDetection, Prediction, Transaction
 
 router = APIRouter()
 
@@ -56,7 +56,7 @@ def get_patterns_summary(db: Session = Depends(get_db)):
             "total_detected": count,
             "high_risk": high,
             "critical": critical,
-            "trend": "+0.0%",  # We could calculate historical trend if we had dense historical data
+            "trend": None,
             "percentage": perc
         })
     
@@ -120,6 +120,7 @@ def get_pattern_detail(pattern_id: str, db: Session = Depends(get_db)):
             channel_dist[ch] = channel_dist.get(ch, 0) + 1
             
         # Recent examples
+        actual_alerts = {a.transaction_id: a for a in db.query(Alert).filter(Alert.transaction_id.in_(tx_ids)).all()}
         for t in txs[:5]:
             recent_examples.append({
                 "transaction_id": t.transaction_id,
@@ -127,11 +128,13 @@ def get_pattern_detail(pattern_id: str, db: Session = Depends(get_db)):
                 "customer_id": t.customer_id,
                 "timestamp": t.event_time.isoformat() if t.event_time else None
             })
-            recent_alerts.append({
-                "id": f"ALRT-{t.transaction_id[:8]}", # Mocking alert ID linking
-                "severity": "HIGH",
-                "timestamp": t.event_time.isoformat() if t.event_time else None
-            })
+            alert = actual_alerts.get(t.transaction_id)
+            if alert:
+                recent_alerts.append({
+                    "id": alert.id,
+                    "severity": alert.severity,
+                    "timestamp": alert.created_at.isoformat() if alert.created_at else None,
+                })
             
     geo_sorted = sorted([{"country": k, "count": v} for k, v in geo_dist.items()], key=lambda x: x["count"], reverse=True)[:5]
     channel_sorted = sorted([{"channel": k, "count": v} for k, v in channel_dist.items()], key=lambda x: x["count"], reverse=True)[:5]
@@ -142,7 +145,7 @@ def get_pattern_detail(pattern_id: str, db: Session = Depends(get_db)):
         "description": meta["desc"],
         "total_detections": total,
         "risk_distribution": risk_counts,
-        "trend": "+0.0%",
+        "trend": None,
         "top_factors": top_factors,
         "geographic_distribution": geo_sorted,
         "amount_distribution": amount_dist,
