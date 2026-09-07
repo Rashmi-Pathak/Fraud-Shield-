@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, ChevronDown, Activity, AlertTriangle, ShieldAlert, CreditCard, DollarSign, MapPin, Monitor, Clock, Users, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, Activity, AlertTriangle, ShieldAlert, CreditCard, DollarSign, MapPin, Monitor, Clock, Users, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
