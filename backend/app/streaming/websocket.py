@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.database.database import get_db, SessionLocal
 from app.streaming.simulator import StreamSimulator
 from app.streaming.processor import StreamProcessor
+from app.schemas.health import StreamHealth
 
 router = APIRouter(prefix="/ws", tags=["Streaming"])
 
@@ -62,6 +63,25 @@ class ConnectionManager:
             del self.simulators[websocket]
 
 manager = ConnectionManager()
+
+
+def get_stream_health() -> StreamHealth:
+    """Return state from the currently active local simulator, if one exists."""
+    simulators = list(manager.simulators.values())
+    if not simulators:
+        return StreamHealth(status="stopped", running=False, paused=False, transactions_processed=0)
+
+    sim = simulators[-1]
+    status = "running" if sim.is_running and not sim.is_paused else "paused" if sim.is_paused else "stopped"
+    return StreamHealth(
+        status=status,
+        running=sim.is_running,
+        paused=sim.is_paused,
+        transactions_processed=sim.metrics["total_processed"],
+        current_speed=sim.speed,
+        current_mode=sim.mode,
+        throughput_per_second=sim.throughput_per_second(),
+    )
 
 @router.websocket("/live")
 async def websocket_endpoint(websocket: WebSocket):
