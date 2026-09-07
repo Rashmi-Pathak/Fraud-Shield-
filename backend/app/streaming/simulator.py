@@ -2,6 +2,7 @@ import asyncio
 import pandas as pd
 import numpy as np
 import os
+import time
 from typing import Dict, Any, Callable
 from datetime import datetime
 
@@ -16,6 +17,7 @@ class StreamSimulator:
         self.scenario = None
         self.current_idx = 0
         self._task = None
+        self.started_monotonic = None
         self.callbacks = []
         self.metrics = {
             "true_positives": 0,
@@ -46,6 +48,7 @@ class StreamSimulator:
             self.is_running = True
             self.is_paused = False
             self.current_idx = 0
+            self.started_monotonic = time.monotonic()
             self._task = asyncio.create_task(self._run_loop())
         elif self.is_paused:
             self.is_paused = False
@@ -59,6 +62,12 @@ class StreamSimulator:
         if self._task:
             self._task.cancel()
             self._task = None
+
+    def throughput_per_second(self):
+        if self.started_monotonic is None:
+            return None
+        elapsed = time.monotonic() - self.started_monotonic
+        return self.metrics["total_processed"] / elapsed if elapsed > 0 else None
 
     def set_speed(self, speed: float):
         self.speed = speed
