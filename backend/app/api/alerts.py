@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, asc
+from sqlalchemy import desc, asc, func
 from typing import Optional, List, Dict, Any
 import math
 from datetime import datetime
@@ -8,9 +8,53 @@ from datetime import datetime
 from app.database.database import get_db
 from app.database.models import Alert, Transaction, Prediction, FraudDetection, FraudLabel, SystemEvent
 from app.ml.predict import PredictionService
+from app.services.feedback_service import FeedbackService
 from pydantic import BaseModel
 
 router = APIRouter()
+feedback_service = FeedbackService()
+
+
+@router.get("/summary")
+def get_alert_summary(db: Session = Depends(get_db)):
+    severity_rows = db.query(Alert.severity, func.count(Alert.id)).group_by(Alert.severity).all()
+    severity_counts = {str(severity).upper(): count for severity, count in severity_rows}
+    colors = {"CRITICAL": "#ef4444", "HIGH": "#f97316", "MEDIUM": "#eab308", "LOW": "#10b981"}
+    overview = [
+        {"name": name.title(), "value": severity_counts.get(name, 0), "color": colors[name]}
+        for name in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+    ]
+    category_rows = (
+        db.query(FraudDetection.fraud_category, func.count(FraudDetection.id))
+        .group_by(FraudDetection.fraud_category)
+        .order_by(func.count(FraudDetection.id).desc())
+        .all()
+    )
+    total_categories = sum(count for _, count in category_rows)
+    categories = [
+        {"name": name.replace("_", " ").title(), "count": count,
+         "pct": round(count / total_categories * 100, 1) if total_categories else 0}
+        for name, count in category_rows
+    ]
+    trend_rows = (
+        db.query(func.date(Alert.created_at).label("day"), Alert.severity, func.count(Alert.id))
+        .group_by(func.date(Alert.created_at), Alert.severity)
+        .order_by(func.date(Alert.created_at).asc())
+        .all()
+    )
+    trend_map = {}
+    for day, severity, count in trend_rows:
+        trend_map.setdefault(str(day), {"name": str(day), "critical": 0, "high": 0, "medium": 0, "low": 0})[str(severity).lower()] = count
+    return {
+        "total": sum(severity_counts.values()),
+        "critical": severity_counts.get("CRITICAL", 0),
+        "high": severity_counts.get("HIGH", 0),
+        "medium": severity_counts.get("MEDIUM", 0),
+        "low": severity_counts.get("LOW", 0),
+        "overview": overview,
+        "categories": categories,
+        "trend": list(trend_map.values()),
+    }
 
 class AlertSummaryOut(BaseModel):
     id: int
@@ -163,17 +207,12 @@ def confirm_fraud(alert_id: int, db: Session = Depends(get_db)):
     alert.status = "CLOSED"
     alert.resolved_at = datetime.utcnow()
     
-    lbl = db.query(FraudLabel).filter(FraudLabel.transaction_id == alert.transaction_id).first()
-    if not lbl:
-        lbl = FraudLabel(transaction_id=alert.transaction_id, is_fraud=True, label_status="CONFIRMED_FRAUD", labeled_at=datetime.utcnow())
-        db.add(lbl)
-    else:
-        lbl.is_fraud = True
-        lbl.label_status = "CONFIRMED_FRAUD"
-        lbl.labeled_at = datetime.utcnow()
-        
+    try:
+        lbl = feedback_service.confirm_label(db, alert.transaction_id, True)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
     _log_event(db, alert_id, "Confirmed as Fraud")
-    return {"status": "success"}
+    return {"status": "success", "label": lbl}
 
 @router.post("/{alert_id}/confirm-legitimate")
 def confirm_legit(alert_id: int, db: Session = Depends(get_db)):
@@ -182,17 +221,12 @@ def confirm_legit(alert_id: int, db: Session = Depends(get_db)):
     alert.status = "CLOSED"
     alert.resolved_at = datetime.utcnow()
     
-    lbl = db.query(FraudLabel).filter(FraudLabel.transaction_id == alert.transaction_id).first()
-    if not lbl:
-        lbl = FraudLabel(transaction_id=alert.transaction_id, is_fraud=False, label_status="CONFIRMED_LEGIT", labeled_at=datetime.utcnow())
-        db.add(lbl)
-    else:
-        lbl.is_fraud = False
-        lbl.label_status = "CONFIRMED_LEGIT"
-        lbl.labeled_at = datetime.utcnow()
-        
+    try:
+        lbl = feedback_service.confirm_label(db, alert.transaction_id, False)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
     _log_event(db, alert_id, "Confirmed as Legitimate")
-    return {"status": "success"}
+    return {"status": "success", "label": lbl}
 
 @router.post("/{alert_id}/dismiss")
 def dismiss_alert(alert_id: int, db: Session = Depends(get_db)):
