@@ -45,7 +45,8 @@ export default function LiveMonitor() {
   }, []);
 
   const connectWs = () => {
-    ws.current = new WebSocket('ws://localhost:8000/ws/live');
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:8000/ws/live`;
+    ws.current = new WebSocket(wsUrl);
     
     ws.current.onopen = () => {
         setStatus("Connected");
@@ -61,7 +62,7 @@ export default function LiveMonitor() {
     };
     
     ws.current.onclose = () => {
-        setStatus("Disconnected");
+        setStatus("Backend unavailable");
         setTimeout(connectWs, 3000); // Reconnect
     };
   };
