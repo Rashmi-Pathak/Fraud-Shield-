@@ -12,7 +12,7 @@ from app.database.models import (
 )
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
+router = APIRouter(tags=["Dashboard"])
 
 @router.get("/summary")
 def get_dashboard_summary(db: Session = Depends(get_db)):
