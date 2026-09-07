@@ -6,12 +6,14 @@ import joblib
 import pandas as pd
 import numpy as np
 import shap
+from pathlib import Path
 
 from app.database.database import get_db
 from app.database.models import ModelVersion, Transaction
 from app.ml.predict import PredictionService
 
 router = APIRouter()
+MODELS_DIR = Path(__file__).resolve().parents[2] / "models"
 
 @router.get("")
 def get_models(db: Session = Depends(get_db)):
@@ -37,17 +39,17 @@ def get_model_detail(model_name: str, db: Session = Depends(get_db)):
         
     importances = []
     try:
-        schema = joblib.load("models/feature_schema.joblib")
+        schema = joblib.load(MODELS_DIR / "feature_schema.joblib")
         if m.model_name == "XGBoost":
-            model = joblib.load("models/xgboost/model.joblib")
+            model = joblib.load(MODELS_DIR / "xgboost" / "model.joblib")
             imp = model.feature_importances_
             importances = sorted([{"feature": f, "importance": float(v)} for f, v in zip(schema, imp)], key=lambda x: x["importance"], reverse=True)[:15]
         elif m.model_name == "RandomForest":
-            model = joblib.load("models/random_forest/model.joblib")
+            model = joblib.load(MODELS_DIR / "random_forest" / "model.joblib")
             imp = model.feature_importances_
             importances = sorted([{"feature": f, "importance": float(v)} for f, v in zip(schema, imp)], key=lambda x: x["importance"], reverse=True)[:15]
         elif m.model_name == "LogisticRegression":
-            model = joblib.load("models/baseline/model.joblib")
+            model = joblib.load(MODELS_DIR / "baseline" / "model.joblib")
             imp = np.abs(model.coef_[0])
             importances = sorted([{"feature": f, "importance": float(v)} for f, v in zip(schema, imp)], key=lambda x: x["importance"], reverse=True)[:15]
         elif m.model_name == "IsolationForest":
@@ -66,6 +68,8 @@ def get_model_detail(model_name: str, db: Session = Depends(get_db)):
         "f1": m.f1,
         "roc_auc": m.roc_auc,
         "pr_auc": m.pr_auc,
+        "false_positive_rate": m.false_positive_rate,
+        "validation_passed": m.validation_passed,
         "status": "Active" if m.is_production else "Archived",
         "production_status": m.is_production,
         "feature_importances": importances
@@ -77,8 +81,8 @@ def get_shap_explanation(transaction_id: str, db: Session = Depends(get_db)):
     if not tx: raise HTTPException(status_code=404, detail="Transaction not found")
         
     try:
-        schema = joblib.load("models/feature_schema.joblib")
-        xgb_model = joblib.load("models/xgboost/model.joblib")
+        schema = joblib.load(MODELS_DIR / "feature_schema.joblib")
+        xgb_model = joblib.load(MODELS_DIR / "xgboost" / "model.joblib")
         
         svc = PredictionService(db)
         feat_result = svc.feature_eng.compute_features(tx)
