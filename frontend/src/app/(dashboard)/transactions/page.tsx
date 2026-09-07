@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 export default function Transactions() {
   const [data, setData] = useState({ items: [], total: 0, page: 1, size: 50, pages: 1 });
   const [loading, setLoading] = useState(true);
+  const [backendError, setBackendError] = useState(false);
   const [search, setSearch] = useState("");
   const [riskLevel, setRiskLevel] = useState("All");
   
@@ -36,9 +37,10 @@ export default function Transactions() {
         if (d.items.length > 0 && !selectedTx) {
             setSelectedTx(d.items[0]);
         }
-      }
+      } else setBackendError(true);
     } catch (err) {
       console.error(err);
+      setBackendError(true);
     } finally {
       setLoading(false);
     }
@@ -53,6 +55,7 @@ export default function Transactions() {
 
   return (
     <div className="p-8 space-y-6 flex h-full">
+      {backendError && <div className="absolute top-4 right-8 z-10 p-3 bg-red-50 text-red-700 rounded-xl border border-red-200 text-sm font-medium">Backend unavailable</div>}
       
       <div className="flex-1 min-w-0 pr-6 space-y-6 flex flex-col">
         {/* Header */}
