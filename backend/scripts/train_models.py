@@ -22,6 +22,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.database.database import SessionLocal
 from app.database.models import Transaction, FraudLabel, ModelVersion
 from app.ml.feature_engineering import FeatureEngineer
+from app.services.feedback_service import CONFIRMED_STATUSES
 
 def create_directories():
     base = "models"
@@ -32,7 +33,7 @@ def extract_data_and_features(db):
     print("Fetching transactions ordered by time...")
     transactions = db.query(Transaction, FraudLabel).outerjoin(
         FraudLabel, Transaction.transaction_id == FraudLabel.transaction_id
-    ).order_by(Transaction.event_time.asc()).all()
+    ).filter(FraudLabel.label_status.in_(CONFIRMED_STATUSES)).order_by(Transaction.event_time.asc()).all()
 
     print(f"Loaded {len(transactions)} transactions. Computing features...")
     
