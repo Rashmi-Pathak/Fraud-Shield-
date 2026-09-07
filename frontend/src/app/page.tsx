@@ -8,13 +8,21 @@ import {
   CreditCard, Activity, Network, ListOrdered
 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
-
-const dummyData = [
-  { val: 20 }, { val: 25 }, { val: 22 }, { val: 30 }, { val: 28 }, 
-  { val: 35 }, { val: 33 }, { val: 40 }, { val: 38 }, { val: 45 },
-];
+import { useEffect, useState } from 'react';
 
 export default function LandingPage() {
+  const [summary, setSummary] = useState<any>(null);
+  const [recentTransaction, setRecentTransaction] = useState<any>(null);
+
+  useEffect(() => {
+    Promise.all([fetch('/api/dashboard/summary'), fetch('/api/dashboard/recent-transactions?limit=1')])
+      .then(async ([summaryResponse, transactionResponse]) => {
+        if (summaryResponse.ok) setSummary(await summaryResponse.json());
+        if (transactionResponse.ok) setRecentTransaction((await transactionResponse.json())[0] || null);
+      })
+      .catch(() => undefined);
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#f4f7f6] overflow-x-hidden">
       
@@ -124,16 +132,16 @@ export default function LandingPage() {
               {/* Transaction Mini Card */}
               <div className="bg-gray-50 rounded-2xl p-4 flex justify-between items-center border border-gray-100">
                 <div className="flex items-center space-x-3">
-                  <div className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">VISA</div>
+                  <div className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">{recentTransaction?.payment_channel || 'N/A'}</div>
                   <div>
-                    <p className="text-xs text-gray-500 font-medium">Card ending in 1234</p>
-                    <p className="text-sm font-semibold text-gray-900">Online Purchase - Electronics</p>
-                    <p className="text-xs text-gray-500">Mumbai, India</p>
+                    <p className="text-xs text-gray-500 font-medium">{recentTransaction?.transaction_id || 'No recent transaction'}</p>
+                    <p className="text-sm font-semibold text-gray-900">{recentTransaction?.merchant || 'Awaiting transaction data'}</p>
+                    <p className="text-xs text-gray-500">{recentTransaction ? new Date(recentTransaction.time).toLocaleString() : 'Live database feed'}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold text-gray-900">₹ 84,920.50</p>
-                  <p className="text-xs text-gray-400">2 sec ago</p>
+                  <p className="text-lg font-bold text-gray-900">{recentTransaction ? `₹ ${recentTransaction.amount.toLocaleString()}` : 'N/A'}</p>
+                  <p className="text-xs text-gray-400">{recentTransaction ? recentTransaction.risk_level : 'No data'}</p>
                 </div>
               </div>
 
@@ -143,10 +151,10 @@ export default function LandingPage() {
                 {/* Probability Card */}
                 <div className="bg-red-50/50 rounded-2xl p-4 border border-red-100">
                   <p className="text-xs font-semibold text-gray-600 mb-2">Fraud Probability</p>
-                  <p className="text-3xl font-bold text-red-600">87.4%</p>
+                  <p className="text-3xl font-bold text-red-600">{summary ? `${summary.fraud_rate.toFixed(1)}%` : 'N/A'}</p>
                   <div className="h-12 w-full mt-2">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={dummyData}>
+                      <AreaChart data={[]}>
                         <defs>
                           <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3}/>
@@ -165,11 +173,11 @@ export default function LandingPage() {
                   <div className="relative w-24 h-24 flex items-center justify-center">
                     <svg className="w-full h-full transform -rotate-90">
                       <circle cx="48" cy="48" r="40" stroke="#f3f4f6" strokeWidth="8" fill="none" />
-                      <circle cx="48" cy="48" r="40" stroke="#dc2626" strokeWidth="8" fill="none" strokeDasharray="251.2" strokeDashoffset={251.2 * (1 - 0.92)} strokeLinecap="round" />
+                      <circle cx="48" cy="48" r="40" stroke="#dc2626" strokeWidth="8" fill="none" strokeDasharray="251.2" strokeDashoffset={251.2 * (1 - (recentTransaction?.risk_score || 0) / 100)} strokeLinecap="round" />
                     </svg>
                     <div className="absolute flex flex-col items-center justify-center">
-                      <span className="text-2xl font-bold text-gray-900">92</span>
-                      <span className="text-[10px] font-bold text-red-500 uppercase">High Risk</span>
+                      <span className="text-2xl font-bold text-gray-900">{recentTransaction?.risk_score ?? 'N/A'}</span>
+                      <span className="text-[10px] font-bold text-red-500 uppercase">{recentTransaction?.risk_level ?? 'UNKNOWN'}</span>
                     </div>
                   </div>
                 </div>
@@ -185,13 +193,7 @@ export default function LandingPage() {
                    </Link>
                 </div>
                 <div className="space-y-2">
-                  {[
-                    { label: 'Amount Anomaly', color: 'bg-red-500' },
-                    { label: 'Velocity Anomaly', color: 'bg-yellow-500' },
-                    { label: 'New Device', color: 'bg-yellow-500' },
-                    { label: 'Location Change', color: 'bg-red-500' },
-                    { label: 'Card Testing', color: 'bg-yellow-400' }
-                  ].map((pat, i) => (
+                  {(recentTransaction ? [{ label: recentTransaction.risk_level, color: 'bg-red-500' }] : []).map((pat, i) => (
                     <div key={i} className="flex items-center space-x-2">
                       <div className={`w-2 h-2 rounded-full ${pat.color}`}></div>
                       <span className="text-xs text-gray-700 font-medium">{pat.label}</span>
