@@ -61,13 +61,13 @@ export default function DashboardLayout({
       {/* Sidebar */}
       <aside className="w-64 bg-[#1e463a] text-white flex flex-col justify-between h-full rounded-r-3xl overflow-hidden shrink-0 shadow-xl m-2 my-2 ml-0 rounded-l-none">
         <div>
-          <div className="p-6 flex items-center space-x-3 mt-2">
+          <Link href="/" className="p-6 flex items-center space-x-3 mt-2">
             <div className="bg-white/10 p-2 rounded-lg relative">
               <div className="absolute top-0 right-0 w-2 h-2 bg-yellow-400 rounded-full transform translate-x-1/3 -translate-y-1/3"></div>
               <ShieldCheck className="w-6 h-6 text-white" />
             </div>
             <span className="font-bold text-xl tracking-tight">FraudShield <span className="font-medium text-white/80">AI</span></span>
-          </div>
+          </Link>
 
           <nav className="mt-4 px-4 space-y-1">
             {navItems.map((item) => {
@@ -117,35 +117,6 @@ export default function DashboardLayout({
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto flex flex-col h-screen">
-        {/* Top Navbar */}
-        <header className="h-20 bg-white/50 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-8 shrink-0">
-          <button className="p-2 text-gray-400 hover:text-gray-600 rounded-md">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-          </button>
-          
-          <div className="flex items-center space-x-6">
-            <div className="relative">
-              <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-              <input 
-                type="text" 
-                placeholder="Search anything..." 
-                className="pl-10 pr-4 py-2 bg-gray-100 border-none rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#1e463a]/20 w-64 transition-all"
-              />
-            </div>
-            
-            <div className="relative p-2 text-gray-500 hover:text-gray-700 cursor-pointer">
-              <Bell className="w-6 h-6" />
-              <div className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-white">{alertCount ?? 'N/A'}</div>
-            </div>
-            
-            <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
-              <Link href="/system" className="p-2 text-gray-500 hover:text-gray-700 cursor-pointer rounded-full hover:bg-gray-100 transition-colors">
-                <Settings className="w-5 h-5" />
-              </Link>
-            </div>
-          </div>
-        </header>
-        
         {/* Page Content */}
         <div className="flex-1 overflow-auto bg-transparent">
           {children}
