@@ -9,23 +9,23 @@ import { useState } from 'react';
 
 export default function AnalyzeTransaction() {
   const [formData, setFormData] = useState({
-    amount: "78400.00",
-    card_id: "CARD_8921",
-    customer_id: "CUST_55621",
-    transaction_type: "ONLINE_PURCHASE",
-    merchant_id: "MERCH_1234",
-    merchant_category: "Electronics",
-    payment_channel: "WEB",
+    amount: "",
+    card_id: "",
+    customer_id: "",
+    transaction_type: "",
+    merchant_id: "",
+    merchant_category: "",
+    payment_channel: "",
     card_present: "No",
-    device_id: "DEV_9911",
-    device_type: "MOBILE",
-    operating_system: "iOS",
-    browser: "Safari",
-    country: "India",
-    state: "Delhi",
-    city: "Delhi",
-    latitude: "28.6139",
-    longitude: "77.2090",
+    device_id: "",
+    device_type: "",
+    operating_system: "",
+    browser: "",
+    country: "",
+    state: "",
+    city: "",
+    latitude: "",
+    longitude: "",
     timestamp: new Date().toISOString().slice(0,16)
   });
 
@@ -50,7 +50,7 @@ export default function AnalyzeTransaction() {
     setError(null);
     try {
       const payload = {
-        transaction_id: "TXN_" + Math.floor(Math.random() * 1000000),
+        transaction_id: "TXN_" + crypto.randomUUID(),
         amount: parseFloat(formData.amount),
         card_id: formData.card_id,
         customer_id: formData.customer_id,
@@ -83,11 +83,11 @@ export default function AnalyzeTransaction() {
       
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(Array.isArray(data.detail) ? data.detail.map(d => d.msg).join(", ") : (data.detail || "Analysis failed"));
+        throw new Error(Array.isArray(data.detail) ? data.detail.map((d: any) => d.msg).join(", ") : (data.detail || "Analysis failed"));
       }
       setResult(data);
     } catch (err: any) {
-      setError(err.message || "An error occurred");
+      setError(err instanceof TypeError ? "Backend unavailable" : (err.message || "Analysis failed"));
     } finally {
       setLoading(false);
     }
@@ -114,7 +114,7 @@ export default function AnalyzeTransaction() {
   );
 
   // Parse result components
-  let probData = [];
+  let probData: { val: number }[] = [];
   if (result) {
     probData = [{val: 0}, {val: result.fraud_probability * 20}, {val: result.fraud_probability * 50}, {val: result.fraud_probability * 80}, {val: result.fraud_probability * 100}];
   }
