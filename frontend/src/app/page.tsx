@@ -24,7 +24,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#f4f7f6] overflow-x-hidden">
+    <div className="min-h-screen fraudshield-surface overflow-x-hidden">
       
       {/* Top Navbar */}
       <nav className="flex items-center justify-between px-8 py-6 max-w-7xl mx-auto">

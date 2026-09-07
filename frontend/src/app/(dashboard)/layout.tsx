@@ -64,7 +64,7 @@ export default function DashboardLayout({
   }, []);
 
   return (
-    <div className="flex h-screen w-full bg-[#f4f7f6]">
+    <div className="flex h-screen w-full fraudshield-surface">
       {/* Sidebar */}
       <aside className="w-64 bg-[#1e463a] text-white flex flex-col justify-between h-full rounded-r-3xl overflow-hidden shrink-0 shadow-xl m-2 my-2 ml-0 rounded-l-none">
         <div>
@@ -154,7 +154,7 @@ export default function DashboardLayout({
         </header>
         
         {/* Page Content */}
-        <div className="flex-1 overflow-auto bg-[#f4f7f6]">
+        <div className="flex-1 overflow-auto bg-transparent">
           {children}
         </div>
       </main>
