@@ -8,10 +8,10 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-from app.database.database import engine, Base
-from app.api import system, data, transactions, predict, dashboard, alerts, patterns, models
+from app.database.database import ensure_schema
+from app.api import system, data, transactions, predict, dashboard, alerts, patterns, models, feedback
 
-Base.metadata.create_all(bind=engine)
+ensure_schema()
 
 app = FastAPI(title="FraudShield AI Backend")
 
@@ -32,6 +32,7 @@ app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"]
 app.include_router(alerts.router, prefix="/api/alerts", tags=["Alerts"])
 app.include_router(patterns.router, prefix="/api/patterns", tags=["Patterns"])
 app.include_router(models.router, prefix="/api/models", tags=["Models"])
+app.include_router(feedback.router, prefix="/api/feedback", tags=["Feedback"])
 
 from app.streaming import websocket
 app.include_router(websocket.router)
