@@ -75,7 +75,9 @@ export default function LiveMonitor() {
 
   const connectWs = () => {
     if (!mounted.current) return;
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:8000/ws/live`;
+    const backendHost = process.env.NEXT_PUBLIC_BACKEND_URL || `${window.location.hostname}:8000`;
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `${wsProtocol}://${backendHost}/ws/live`;
     ws.current = new WebSocket(wsUrl);
     
     ws.current.onopen = () => {
