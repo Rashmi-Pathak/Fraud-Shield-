@@ -34,8 +34,8 @@ def find_file(filename):
     return None
 
 def import_data():
-    raw_tx_path = find_file("raw_transactions_15000.csv")
-    labels_path = find_file("fraud_labels_15000.csv")
+    raw_tx_path = find_file("raw_transactions_100000.csv")
+    labels_path = find_file("fraud_labels_100000.csv")
 
     if not raw_tx_path or not labels_path:
         print("Required dataset files not found.")
