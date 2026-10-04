@@ -31,8 +31,8 @@ export default function TransactionDetail() {
           const detail = await res.json();
           setData(detail);
           
-          if (detail.transaction?.card_id) {
-            const hRes = await fetch(`/api/transactions?card_id=${encodeURIComponent(detail.transaction.card_id)}&size=5&sort_by=event_time&sort_desc=true`);
+          if (detail.transaction?.customer_id) {
+            const hRes = await fetch(`/api/transactions?customer_id=${encodeURIComponent(detail.transaction.customer_id)}&size=15&sort_by=event_time&sort_desc=true`);
             if (hRes.ok) {
               const hData = await hRes.json();
               setHistory(hData.items.reverse()); // Show chronologically
@@ -69,14 +69,17 @@ export default function TransactionDetail() {
     { name: 'Isolation Forest', value: Math.max(0, pred.isolation_forest_score * 100), color: '#ef4444' },
   ];
 
-  // Map SHAP or risk factors
-  
-  const shapData = shapExpl ? shapExpl.contributions.map((c: any) => ({
-    name: c.feature,
-    value: Math.abs(c.contribution),
-    raw: c.contribution
-  })) : [];
-
+  // Map Historical Context Features
+  const features = data.features || {};
+  const contextItems = [
+    { label: "New Location", val: features.is_new_location === 1 ? "Yes" : "No", danger: features.is_new_location === 1 },
+    { label: "New Device", val: features.is_new_device === 1 ? "Yes" : "No", danger: features.is_new_device === 1 },
+    { label: "Unusual Time", val: features.is_outside_typical_hours === 1 ? "Yes" : "No", danger: features.is_outside_typical_hours === 1 },
+    { label: "Dist. from Last Txn", val: `${(features.distance_from_previous_km || 0).toFixed(0)} km`, danger: features.distance_from_previous_km > 500 },
+    { label: "Est. Travel Speed", val: `${(features.estimated_travel_speed_kmh || 0).toFixed(0)} km/h`, danger: features.estimated_travel_speed_kmh > 800 },
+    { label: "Amount vs Avg", val: `${(features.amount_vs_customer_average || 0).toFixed(1)}x`, danger: features.amount_vs_customer_average > 3 },
+    { label: "24h Txn Count", val: `${features.transaction_count_24h || 0}`, danger: features.transaction_count_24h > 5 },
+  ];
 
   const riskLevelColor = pred.risk_level === 'CRITICAL' ? 'text-red-600 bg-red-50 border-red-100' :
                          pred.risk_level === 'HIGH' ? 'text-orange-600 bg-orange-50 border-orange-100' :
@@ -114,7 +117,7 @@ export default function TransactionDetail() {
       </div>
 
       {/* Top Grid (5 cards) */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         
         {/* Fraud Probability */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
@@ -200,7 +203,7 @@ export default function TransactionDetail() {
       </div>
 
       {/* Middle Grid (3 cols) */}
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Transaction Information */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
@@ -342,26 +345,21 @@ export default function TransactionDetail() {
       </div>
 
       {/* Bottom Grid (2 cols) */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* Risk Factors (SHAP) */}
+        {/* Risk Factors (Context) */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex space-x-6">
           <div className="flex-1 overflow-auto">
             <h3 className="font-bold text-gray-900 text-sm mb-4">Historical Context</h3>
             <div className="space-y-3 mt-4 pr-4 text-xs text-gray-600">
-                                {shapData.length === 0 ? "No contextual features found." : 
-                    shapData.map((d: any, i: number) => (
-                      <div key={i} className="flex justify-between items-center text-[10px] border-b border-gray-50 pb-2">
-                        <span className="w-24 text-gray-600 truncate" title={d.name}>{d.name}</span>
-                        <div className="flex-1 mx-3 h-1.5 bg-gray-100 rounded-full overflow-hidden flex justify-end">
-                          <div className={`h-full rounded-full ${d.raw > 0 ? 'bg-[#ef4444]' : 'bg-[#10b981]'}`} style={{width: `${(d.value / Math.max(...shapData.map((s:any)=>s.value))) * 100}%`}}></div>
-                        </div>
-                        <span className={`font-bold w-12 text-right ${d.raw > 0 ? 'text-[#ef4444]' : 'text-[#10b981]'}`}>
-                          {d.raw > 0 ? '+' : ''}{(d.raw).toFixed(3)}
-                        </span>
-                      </div>
-                    ))
-                }
+                {contextItems.map((item, i) => (
+                  <div key={i} className="flex justify-between items-center text-xs border-b border-gray-50 pb-2">
+                    <span className="text-gray-600 truncate">{item.label}</span>
+                    <span className={`font-bold ${item.danger ? 'text-[#ef4444]' : 'text-gray-900'}`}>
+                      {item.val}
+                    </span>
+                  </div>
+                ))}
             </div>
           </div>
         </div>
@@ -369,11 +367,11 @@ export default function TransactionDetail() {
         {/* Recent Transaction History */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 relative">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="font-bold text-gray-900 text-sm">Recent Transaction History <span className="text-gray-400 font-normal text-xs ml-1">(This Card)</span></h3>
-            <Link href={`/transactions?card_id=${tx.card_id}`} className="text-[10px] font-bold text-[#1e463a] hover:underline">View All</Link>
+            <h3 className="font-bold text-gray-900 text-sm">Recent Transaction History <span className="text-gray-400 font-normal text-xs ml-1">(This Customer)</span></h3>
+            <Link href={`/transactions?customer_id=${tx.customer_id}`} className="text-[10px] font-bold text-[#1e463a] hover:underline">View All</Link>
           </div>
           
-          <div className="relative border-l border-gray-200 ml-2 space-y-6 pb-2">
+          <div className="relative border-l border-gray-200 ml-2 space-y-6 pb-2 h-[220px] overflow-auto">
             {history.length === 0 ? (
                 <div className="pl-6 text-xs text-gray-400">Loading history...</div>
             ) : history.map((t, i) => {
