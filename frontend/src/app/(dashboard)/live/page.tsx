@@ -42,6 +42,30 @@ export default function LiveMonitor() {
   useEffect(() => {
     mounted.current = true;
     connectWs();
+    
+    // Initial fetch of recent 10 transactions
+    fetch('/api/transactions?size=10&sort_by=event_time&sort_desc=true')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.items && mounted.current) {
+           const initialTxs = data.items.map((t: any) => ({
+              time: new Date(t.event_time).toLocaleTimeString(),
+              id: t.transaction_id,
+              card: t.card_id ? t.card_id.slice(-4) : '0000',
+              amount: t.amount.toLocaleString(undefined, {minimumFractionDigits: 2}),
+              merchant: t.merchant_category,
+              loc: t.city ? `${t.city}, ${t.country}` : t.country,
+              dev: t.device_type || 'Unknown',
+              score: t.prediction?.risk_score || 0,
+              level: t.prediction?.risk_level || 'UNKNOWN',
+              patterns: '-', 
+              isCritical: t.prediction?.risk_level === 'CRITICAL' || t.prediction?.risk_level === 'HIGH'
+           }));
+           setTransactions(initialTxs);
+        }
+      })
+      .catch(console.error);
+
     return () => {
         mounted.current = false;
         if (reconnectTimer.current) window.clearTimeout(reconnectTimer.current);
@@ -94,8 +118,8 @@ export default function LiveMonitor() {
     };
     
     setTransactions(prev => {
-        const next = [...prev, newTx];
-        if (next.length > 100) return next.slice(next.length - 100);
+        const next = [newTx, ...prev];
+        if (next.length > 10) return next.slice(0, 10);
         return next;
     });
 
@@ -257,9 +281,9 @@ export default function LiveMonitor() {
         </div>
       </div>
 
-      <div className="flex gap-6">
+      <div className="flex flex-col gap-6">
         {/* Main Stream Section */}
-        <div className="flex-1 space-y-6">
+        <div className="w-full space-y-6">
           
           {/* Controls */}
           <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
@@ -398,8 +422,8 @@ export default function LiveMonitor() {
 
         </div>
 
-        {/* Right Sidebar */}
-        <div className="w-80 space-y-6 flex-shrink-0">
+        {/* Bottom Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
           
           {/* Live Alerts */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-[300px] overflow-auto flex flex-col">
