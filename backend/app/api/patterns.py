@@ -22,6 +22,19 @@ PATTERN_METADATA = {
     "sequential": {"title": "Sequential", "desc": "Pre-defined suspicious sequences of actions or specific transaction chains."}
 }
 
+PATTERN_DB_MAPPING = {
+    "amount-anomaly": "HIGH_AMOUNT",
+    "velocity": "VELOCITY",
+    "geographic": "IMPOSSIBLE_TRAVEL",
+    "device": "DEVICE_ANOMALY",
+    "merchant": "MERCHANT_ANOMALY",
+    "time-anomaly": "TIME_ANOMALY",
+    "card-testing": "CARD_TESTING",
+    "behavioral": "STRUCTURING",
+    "network": "NETWORK_ANOMALY",
+    "sequential": "SEQUENTIAL_ANOMALY"
+}
+
 @router.get("")
 def get_patterns_summary(db: Session = Depends(get_db)):
     # Calculate overall stats
@@ -31,9 +44,7 @@ def get_patterns_summary(db: Session = Depends(get_db)):
     res = []
     
     for key, meta in PATTERN_METADATA.items():
-        # Get detections for this category. Note that fraud_category in DB is usually uppercase with underscores (e.g., AMOUNT_ANOMALY)
-        # Let's map our keys to db categories.
-        db_cat = key.upper().replace("-", "_")
+        db_cat = PATTERN_DB_MAPPING.get(key, key.upper().replace("-", "_"))
         
         # Count total
         count = db.query(FraudDetection).filter(FraudDetection.fraud_category == db_cat).count()
@@ -68,7 +79,7 @@ def get_pattern_detail(pattern_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Pattern not found")
         
     meta = PATTERN_METADATA[pattern_id]
-    db_cat = pattern_id.upper().replace("-", "_")
+    db_cat = PATTERN_DB_MAPPING.get(pattern_id, pattern_id.upper().replace("-", "_"))
     
     dets = db.query(FraudDetection).filter(FraudDetection.fraud_category == db_cat).all()
     
